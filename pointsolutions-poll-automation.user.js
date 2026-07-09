@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PointSolutions Browser Poll Automation
 // @namespace    https://github.com/rsharma929/pointsolutions-poll-automation
-// @version      7.0
+// @version      7.1
 // @description  Auto-answers PointSolutions / TurningPoint (ttpoll.com) browser polls: random MCQ, short answer submitted via the pink arrow, best-effort hotspot. Ignores the chat-support launcher. Set DEBUG=true for an on-screen readout and console DOM dumps.
 // @author       Rohan
 // @license      MIT
@@ -145,6 +145,50 @@
         return alt.includes('hotspot') || aria.includes('hotspot');
     }
 
+    // Words that mark a control as UI chrome / navigation / chat — it must NEVER be treated
+    // as an answer choice. This is what stops the script from clicking "Leave Session",
+    // the confirm-leave dialog, the Polling/Messaging tabs, the help button, etc.
+    // NOTE: deliberately does NOT contain 'send'/'submit'/'respond' — those appear as
+    // substrings in legitimate answer-container class names (e.g. "response-options") and
+    // would filter out real choices. Text submit buttons are excluded separately below.
+    const NON_ANSWER_WORDS = ['chat', 'messaging', 'support', 'help', 'close', 'menu',
+        'settings', 'navbar', 'navigation', 'exit', 'leave', 'confirm', 'cancel', 'dismiss',
+        'logout', 'log out', 'sign out', 'signout', 'intercom', 'zendesk', 'crisp', 'drift',
+        'hubspot', 'launcher', 'widget', 'bubble', 'beacon', 'livechat'];
+
+    // Navigation/session words used when hunting the submit arrow. Deliberately EXCLUDES
+    // 'send'/'submit' so the pink arrow itself is not filtered out, while still rejecting
+    // Leave / Cancel / Close / etc.
+    const NAV_WORDS = ['leave', 'exit', 'close', 'menu', 'settings', 'confirm', 'cancel',
+        'dismiss', 'logout', 'log out', 'sign out', 'signout', 'navbar', 'navigation'];
+
+    // True if any of `words` appears in the element's aria-label, id, class, or its parent's
+    // class/id. When includeOwnText is set, also checks the element's own short text label
+    // (capped at 20 chars so we match button labels, not big containers or question text).
+    function matchesWords(el, words, includeOwnText) {
+        let aria = (el.getAttribute && (el.getAttribute('aria-label') || "").toLowerCase()) || "";
+        let id = (el.id || "").toLowerCase();
+        let cls = classStr(el);
+        let pCls = classStr(el.parentElement);
+        let pId = (el.parentElement && (el.parentElement.id || "").toLowerCase()) || "";
+        let text = "";
+        if (includeOwnText) { text = (el.innerText || "").toLowerCase().trim(); if (text.length > 20) text = ""; }
+        return words.some(w => aria.includes(w) || id.includes(w) || cls.includes(w) ||
+                               pCls.includes(w) || pId.includes(w) || (text && text.includes(w)));
+    }
+
+    // A control that must never be clicked as an answer choice.
+    function isNonAnswerButton(el) {
+        if (el.disabled) return true;
+        if (el.tagName === 'IFRAME') return true;
+        if (el.getAttribute && el.getAttribute('role') === 'tab') return true; // Polling/Messaging tabs
+        if (isChatSupportElement(el)) return true;
+        return matchesWords(el, NON_ANSWER_WORDS, true);
+    }
+
+    // Lighter filter for text boxes and hotspot images: reject disabled elements, iframes,
+    // and anything inside a chat/support widget (but NOT navigation words, which would risk
+    // rejecting a legit response box or image).
     function isBadElement(el) {
         if (el.disabled) return true;
         if (el.tagName === 'IFRAME') return true;
@@ -183,7 +227,8 @@
 
         let candidates = Array.from(container.querySelectorAll(
             'button, [role="button"], input[type="submit"]'
-        )).filter(btn => isElementVisible(btn) && !isBadElement(btn));
+        )).filter(btn => isElementVisible(btn) && !btn.disabled &&
+                         !isChatSupportElement(btn) && !matchesWords(btn, NAV_WORDS, true));
 
         if (candidates.length === 0) return null;
 
@@ -237,7 +282,7 @@
             'input[type="radio"], input[type="checkbox"], [role="radio"], [role="checkbox"], [class*="answer" i], [class*="choice" i], [class*="option" i], button'
         );
         let currentChoices = Array.from(rawChoices).filter(el => {
-            if (!isElementVisible(el) || isBadElement(el)) return false;
+            if (!isElementVisible(el) || isNonAnswerButton(el)) return false;
             let text = (el.innerText || "").toLowerCase().trim();
             let className = classStr(el);
             let isInput = el.tagName === 'INPUT';
