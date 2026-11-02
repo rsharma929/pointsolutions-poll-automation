@@ -427,22 +427,28 @@
         // ==========================================
         if (answeredCurrentBatch) return;
 
-        // --- MCQ (click logic UNCHANGED; just wrapped in a delay + stale-guard) ---
+        // --- MCQ (click mechanism UNCHANGED from v7.1 — .click(); only a delay wraps it) ---
+        // Two rules when the timer fires, in this order:
+        //   1. If ANY choice is already selected, do NOT click — clicking a selected choice
+        //      would deselect it. (Covers you answering by hand during the delay.)
+        //   2. Otherwise ANSWER. Prefer the choice we picked; if it got re-rendered away
+        //      during the delay, click another still-valid choice from the same question
+        //      instead of skipping — you'd rather it answer than miss.
         if (currentChoices.length > 0) {
             let idx = Math.floor(Math.random() * currentChoices.length);
             let target = currentChoices[idx];
             let snapshot = currentChoices;
-            answeredCurrentBatch = true;                 // lock now so we act once
+            answeredCurrentBatch = true;                 // lock now so we act exactly once
             updateStatus("🤔 Thinking…", "#ff9800");
             setTimeout(() => {
-                if (!document.contains(target) || !isElementVisible(target)) {
-                    updateStatus("↩︎ Question changed — skipped", "#9e9e9e"); return;
-                }
-                if (snapshot.some(isChoiceSelected)) {    // you answered it in the meantime
+                if (snapshot.some(isChoiceSelected)) {   // answered during the delay — never deselect
                     updateStatus("✅ Already answered", "#4caf50"); return;
                 }
-                target.click();                           // same mechanism as v7.1
-                updateStatus(`✅ MCQ · option ${idx + 1}`, "#4caf50");
+                let el = (document.contains(target) && isElementVisible(target)) ? target
+                       : snapshot.find(c => document.contains(c) && isElementVisible(c));
+                if (!el) { updateStatus("↩︎ Question changed — skipped", "#9e9e9e"); return; }
+                el.click();                              // same mechanism as v7.1
+                updateStatus("✅ MCQ answered", "#4caf50");
             }, rint(MIN_DELAY_MS, MAX_DELAY_MS));
             return;
         }
@@ -455,6 +461,10 @@
             updateStatus("🤔 Thinking…", "#ff9800");
             setTimeout(() => {
                 if (!document.contains(input) || !isElementVisible(input)) {
+                    // box got re-rendered during the delay — grab a fresh one so we still answer
+                    input = textInputs.find(el => document.contains(el) && isElementVisible(el));
+                }
+                if (!input || !document.contains(input) || !isElementVisible(input)) {
                     updateStatus("↩︎ Question changed — skipped", "#9e9e9e"); return;
                 }
                 dumpDebug("short-answer input", input);
