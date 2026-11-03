@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PointSolutions Browser Poll Automation
 // @namespace    https://github.com/rsharma929/pointsolutions-poll-automation
-// @version      7.6
+// @version      7.7
 // @description  Auto-answers PointSolutions / TurningPoint (ttpoll.com / echo360) browser polls: random MCQ and short answer (submitted via the pink arrow), with a small random delay so it isn't instant. Short answers come from topic grab-bag pools keyed by a lecture topic you type in the pill. Ignores chat/support and the results/chart screen. Ctrl+Shift+D toggles an on-screen debug readout.
 // @license      MIT
 // @homepageURL  https://github.com/rsharma929/pointsolutions-poll-automation
@@ -25,8 +25,8 @@
     const NS = "paPoll_";            // localStorage prefix
 
     // Small random "thinking" delay before answering (so responses aren't suspiciously instant).
-    const MIN_DELAY_MS = 500;
-    const MAX_DELAY_MS = 7500;
+    const MIN_DELAY_MS = 1500;
+    const MAX_DELAY_MS = 8000;
     const rint = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
 
     const LOG_PREFIX = "[PollAutomation]";
