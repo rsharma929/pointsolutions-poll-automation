@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PointSolutions Browser Poll Automation
 // @namespace    https://github.com/rsharma929/pointsolutions-poll-automation
-// @version      7.3
+// @version      7.4
 // @description  Auto-answers PointSolutions / TurningPoint (ttpoll.com / echo360) browser polls: random MCQ and short answer (submitted via the pink arrow), with a small random delay so it isn't instant. Short answers come from topic grab-bag pools keyed by a lecture topic you type in the pill. Ignores chat/support and the results/chart screen. Ctrl+Shift+D toggles an on-screen debug readout.
 // @license      MIT
 // @homepageURL  https://github.com/rsharma929/pointsolutions-poll-automation
@@ -549,12 +549,13 @@
             'input[type="radio"], input[type="checkbox"], [role="radio"], [role="checkbox"], [class*="answer" i], [class*="choice" i], [class*="option" i], button'
         );
         let currentChoices = Array.from(rawChoices).filter(el => {
+            if (bar.contains(el)) return false;              // never treat our own status pill as a choice
             if (!isElementVisible(el) || isNonAnswerButton(el)) return false;
             let text = (el.innerText || "").toLowerCase().trim();
             let className = classStr(el);
             let isInput = el.tagName === 'INPUT';
             let isRole = el.getAttribute('role') === 'radio' || el.getAttribute('role') === 'checkbox';
-            let hasGoodClass = className.includes('choice') || className.includes('answer') || className.includes('option');
+            let hasGoodClass = className.includes('choice') || className.includes('answer') || className.includes('option') || className.includes('response');
             let isSubmitButton = text.includes('submit') || text.includes('send') || text.includes('respond') || className.includes('submit');
             let isShortTextButton = el.tagName === 'BUTTON' && text.length > 0 && text.length < 15 && !isSubmitButton;
             return isInput || isRole || hasGoodClass || isShortTextButton;
@@ -564,6 +565,7 @@
         // --- TEXT INPUT (short answer) ---
         let rawTextInputs = document.querySelectorAll('input[type="text"], textarea, [role="textbox"]');
         let textInputs = Array.from(rawTextInputs).filter(el => {
+            if (bar.contains(el)) return false;              // never type our answer into our own topic box
             if (!isElementVisible(el) || isBadElement(el)) return false;
             let ph = (el.getAttribute('placeholder') || "").toLowerCase();
             if (ph.includes('search') || ph.includes('message') || ph.includes('chat')) return false;
