@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PointSolutions Browser Poll Automation
 // @namespace    https://github.com/rsharma929/pointsolutions-poll-automation
-// @version      7.5
+// @version      7.6
 // @description  Auto-answers PointSolutions / TurningPoint (ttpoll.com / echo360) browser polls: random MCQ and short answer (submitted via the pink arrow), with a small random delay so it isn't instant. Short answers come from topic grab-bag pools keyed by a lecture topic you type in the pill. Ignores chat/support and the results/chart screen. Ctrl+Shift+D toggles an on-screen debug readout.
 // @license      MIT
 // @homepageURL  https://github.com/rsharma929/pointsolutions-poll-automation
@@ -38,6 +38,7 @@
     // Topic you type into the pill (e.g. a lecture title). Steers which short-answer pool is used.
     let topicVal = "";
     try { topicVal = localStorage.getItem(NS + "topic") || ""; } catch (e) {}
+    let activeDelayTimer = null;   // live countdown interval shown during the random answer delay
 
     // ==========================================
     // 0b. SHORT-ANSWER POOLS
@@ -315,6 +316,7 @@
     clearBtn.addEventListener('click', () => {
         topicInput.value = ''; topicVal = '';
         try { localStorage.removeItem(NS + "topic"); } catch (e) {}
+        if (activeDelayTimer) { clearInterval(activeDelayTimer); activeDelayTimer = null; }
         answeredCurrentBatch = false; lastActiveCount = 0;
         updateStatus("🧹 Session cleared", "#00bcd4");
     });
@@ -327,6 +329,27 @@
         bar.style.borderLeft = `5px solid ${borderColor}`;
     }
     updateStatus("🤖 Poll Automation: Active", "#00bcd4");
+
+    // Live countdown shown in the pill during the random "thinking" delay before answering.
+    function countdownStatus(remMs, totalMs) {
+        const secs = (remMs / 1000).toFixed(1);
+        const pct = Math.max(0, Math.min(100, (remMs / totalMs) * 100));
+        statusSpan.innerHTML =
+            '<div style="margin-bottom:4px">⏳ Random delay · answering in ' + secs + 's</div>' +
+            '<div style="height:5px;border-radius:999px;background:rgba(255,255,255,0.18);overflow:hidden">' +
+            '<div style="height:100%;width:' + pct + '%;background:#ff9800"></div></div>';
+        bar.style.borderLeft = '5px solid #ff9800';
+    }
+    function runDelay(onDone) {
+        if (activeDelayTimer) { clearInterval(activeDelayTimer); activeDelayTimer = null; }
+        const total = rint(MIN_DELAY_MS, MAX_DELAY_MS), t0 = Date.now();
+        countdownStatus(total, total);
+        activeDelayTimer = setInterval(() => {
+            const rem = total - (Date.now() - t0);
+            if (rem <= 0) { clearInterval(activeDelayTimer); activeDelayTimer = null; onDone(); }
+            else countdownStatus(rem, total);
+        }, 100);
+    }
 
     // Restore a saved pill position, and make the pill draggable by its status line
     // (dragging the status text won't interfere with typing in the topic box).
@@ -634,8 +657,7 @@
             let target = pool[idx];
             let snapshot = pool;
             answeredCurrentBatch = true;                 // lock now so we act exactly once
-            updateStatus("🤔 Thinking…", "#ff9800");
-            setTimeout(() => {
+            runDelay(() => {
                 if (snapshot.some(isChoiceSelected)) {   // answered during the delay — never deselect
                     updateStatus("✅ Already answered", "#4caf50"); return;
                 }
@@ -644,7 +666,7 @@
                 if (!el) { updateStatus("↩︎ Question changed — skipped", "#9e9e9e"); return; }
                 el.click();                              // same mechanism as v7.1
                 updateStatus("✅ MCQ answered", "#4caf50");
-            }, rint(MIN_DELAY_MS, MAX_DELAY_MS));
+            });
             return;
         }
 
@@ -653,8 +675,7 @@
             let input = textInputs[0];
             let word = pickShortAnswer();
             answeredCurrentBatch = true;
-            updateStatus("🤔 Thinking…", "#ff9800");
-            setTimeout(() => {
+            runDelay(() => {
                 if (!document.contains(input) || !isElementVisible(input)) {
                     // box got re-rendered during the delay — grab a fresh one so we still answer
                     input = textInputs.find(el => document.contains(el) && isElementVisible(el));
@@ -685,7 +706,7 @@
                     }
                 };
                 setTimeout(trySubmit, 300);
-            }, rint(MIN_DELAY_MS, MAX_DELAY_MS));
+            });
             return;
         }
 
