@@ -35,7 +35,11 @@ A small pill appears in the bottom-left of the poll page:
   etc.). **Drag the pill by this line** to move it anywhere; it remembers where you put it.
 - **📚 Topic box** — type the lecture/workshop topic here so short answers are on-topic. It's saved
   automatically between sessions.
-- **✕ Clear button** — wipes the topic and resets the tool for a fresh session.
+- **⏸ Pause / ▶ Resume** — stops the tool from answering (and cancels any running countdown) until
+  you resume. Use it to hold off on a question you'd rather answer yourself. The paused state sticks
+  until you resume (even across reloads).
+- **✕ Clear** — clears the topic box only. It does **not** stop or restart answering — use Pause for
+  that.
 - **Ctrl+Shift+D** — toggles a small debug readout (what it's detecting), if you ever need it.
 
 ---
@@ -92,7 +96,8 @@ That's it. Open a poll at `ttpoll.com` (or your class's PointSolutions link) and
 3. Leave the tab open. When a question appears, the pill shows a countdown and then answers:
    - **MCQ** → clicks an option.
    - **Short answer** → types an answer and submits with the pink arrow.
-4. Press **✕** on the pill to clear the topic and reset between unrelated sessions.
+4. Use **⏸ Pause** to stop it from answering (e.g. a question you want to do yourself); **▶** resumes.
+   Use **✕** to clear the topic between unrelated sessions.
 
 If you answer a question yourself first, the tool detects it and won't touch it.
 

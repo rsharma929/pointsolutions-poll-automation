@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         PointSolutions Browser Poll Automation
 // @namespace    https://github.com/rsharma929/pointsolutions-poll-automation
-// @version      8.0
-// @description  Auto-answers PointSolutions / TurningPoint (ttpoll.com / echo360) browser polls: picks a multiple-choice option or types a short answer (submitted via the pink arrow) after a short random delay shown as a live countdown. Short answers come from 20 topic pools keyed by a lecture topic you type in the draggable pill (with a Clear button). Skips the results/chart screen and ignores chat/nav chrome. Ctrl+Shift+D toggles an on-screen debug readout.
+// @version      8.1
+// @description  Auto-answers PointSolutions / TurningPoint (ttpoll.com / echo360) browser polls: picks a multiple-choice option or types a short answer (submitted via the pink arrow) after a short random delay shown as a live countdown. Short answers come from 20 topic pools keyed by a lecture topic you type in the draggable pill (with Pause/Resume and Clear buttons). Skips the results/chart screen and ignores chat/nav chrome. Ctrl+Shift+D toggles an on-screen debug readout.
 // @license      MIT
 // @homepageURL  https://github.com/rsharma929/pointsolutions-poll-automation
 // @supportURL   https://github.com/rsharma929/pointsolutions-poll-automation/issues
@@ -39,6 +39,8 @@
     let topicVal = "";
     try { topicVal = localStorage.getItem(NS + "topic") || ""; } catch (e) {}
     let activeDelayTimer = null;   // live countdown interval shown during the random answer delay
+    let paused = false;            // when true, the tool stops answering until you resume
+    try { paused = localStorage.getItem(NS + "paused") === "1"; } catch (e) {}
 
     // ==========================================
     // 0b. SHORT-ANSWER POOLS
@@ -305,22 +307,38 @@
         topicVal = topicInput.value.trim();
         try { localStorage.setItem(NS + "topic", topicVal); } catch (e) {}
     });
-    // Clear button: wipe the topic/context and reset the per-question lock for a fresh session.
-    const clearBtn = document.createElement('button');
-    clearBtn.type = 'button'; clearBtn.textContent = '✕'; clearBtn.title = 'Clear topic & reset session';
-    Object.assign(clearBtn.style, {
+    const btnStyle = {
         flex: '0 0 auto', fontSize: '12px', lineHeight: '1', padding: '4px 7px', borderRadius: '5px',
         border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.1)', color: '#fff',
         cursor: 'pointer', fontFamily: 'inherit'
+    };
+    // Pause / resume button: stops the tool from answering (and cancels any running delay) until resumed.
+    const pauseBtn = document.createElement('button');
+    pauseBtn.type = 'button'; pauseBtn.title = 'Pause / resume answering';
+    Object.assign(pauseBtn.style, btnStyle);
+    function renderPause() { pauseBtn.textContent = paused ? '▶' : '⏸'; }
+    renderPause();
+    pauseBtn.addEventListener('click', () => {
+        paused = !paused;
+        try { localStorage.setItem(NS + "paused", paused ? "1" : "0"); } catch (e) {}
+        renderPause();
+        if (paused) {
+            if (activeDelayTimer) { clearInterval(activeDelayTimer); activeDelayTimer = null; }
+            updateStatus("⏸ Paused — click ▶ to resume", "#9e9e9e");
+        } else {
+            updateStatus("▶ Resumed — watching for questions", "#00bcd4");
+        }
     });
+    // Clear button: ONLY wipes the typed topic — it does not stop or restart answering (use Pause for that).
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button'; clearBtn.textContent = '✕'; clearBtn.title = 'Clear the lecture topic';
+    Object.assign(clearBtn.style, btnStyle);
     clearBtn.addEventListener('click', () => {
         topicInput.value = ''; topicVal = '';
         try { localStorage.removeItem(NS + "topic"); } catch (e) {}
-        if (activeDelayTimer) { clearInterval(activeDelayTimer); activeDelayTimer = null; }
-        answeredCurrentBatch = false; lastActiveCount = 0;
-        updateStatus("🧹 Session cleared", "#00bcd4");
+        updateStatus("🧹 Topic cleared", "#00bcd4");
     });
-    topicWrap.appendChild(topicLabel); topicWrap.appendChild(topicInput); topicWrap.appendChild(clearBtn);
+    topicWrap.appendChild(topicLabel); topicWrap.appendChild(topicInput); topicWrap.appendChild(pauseBtn); topicWrap.appendChild(clearBtn);
     bar.appendChild(statusSpan); bar.appendChild(topicWrap);
     document.body.appendChild(bar);
 
@@ -328,7 +346,7 @@
         statusSpan.innerHTML = text;
         bar.style.borderLeft = `5px solid ${borderColor}`;
     }
-    updateStatus("🤖 Poll Automation: Active", "#00bcd4");
+    updateStatus(paused ? "⏸ Paused — click ▶ to resume" : "🤖 Poll Automation: Active", paused ? "#9e9e9e" : "#00bcd4");
 
     // Live countdown shown in the pill during the random "thinking" delay before answering.
     function countdownStatus(remMs, totalMs) {
@@ -573,6 +591,11 @@
     // in priority: MCQ > short answer. A per-question lock guarantees one response per question;
     // the lock resets when the on-screen element set changes (a new question appears).
     setInterval(() => {
+        // Paused — stop answering and cancel any running delay until the user resumes.
+        if (paused) {
+            if (activeDelayTimer) { clearInterval(activeDelayTimer); activeDelayTimer = null; }
+            return;
+        }
         // Skip the results / chart screen entirely.
         if (onResultsScreen()) {
             if (lastActiveCount > 0) updateStatus("📊 Results shown — waiting", "#9e9e9e");
