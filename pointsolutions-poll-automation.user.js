@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PointSolutions Browser Poll Automation
 // @namespace    https://github.com/rsharma929/pointsolutions-poll-automation
-// @version      7.4
+// @version      7.5
 // @description  Auto-answers PointSolutions / TurningPoint (ttpoll.com / echo360) browser polls: random MCQ and short answer (submitted via the pink arrow), with a small random delay so it isn't instant. Short answers come from topic grab-bag pools keyed by a lecture topic you type in the pill. Ignores chat/support and the results/chart screen. Ctrl+Shift+D toggles an on-screen debug readout.
 // @license      MIT
 // @homepageURL  https://github.com/rsharma929/pointsolutions-poll-automation
@@ -304,7 +304,21 @@
         topicVal = topicInput.value.trim();
         try { localStorage.setItem(NS + "topic", topicVal); } catch (e) {}
     });
-    topicWrap.appendChild(topicLabel); topicWrap.appendChild(topicInput);
+    // Clear button: wipe the topic/context and reset the per-question lock for a fresh session.
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button'; clearBtn.textContent = '✕'; clearBtn.title = 'Clear topic & reset session';
+    Object.assign(clearBtn.style, {
+        flex: '0 0 auto', fontSize: '12px', lineHeight: '1', padding: '4px 7px', borderRadius: '5px',
+        border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.1)', color: '#fff',
+        cursor: 'pointer', fontFamily: 'inherit'
+    });
+    clearBtn.addEventListener('click', () => {
+        topicInput.value = ''; topicVal = '';
+        try { localStorage.removeItem(NS + "topic"); } catch (e) {}
+        answeredCurrentBatch = false; lastActiveCount = 0;
+        updateStatus("🧹 Session cleared", "#00bcd4");
+    });
+    topicWrap.appendChild(topicLabel); topicWrap.appendChild(topicInput); topicWrap.appendChild(clearBtn);
     bar.appendChild(statusSpan); bar.appendChild(topicWrap);
     document.body.appendChild(bar);
 
