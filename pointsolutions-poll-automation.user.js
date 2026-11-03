@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PointSolutions Browser Poll Automation
 // @namespace    https://github.com/rsharma929/pointsolutions-poll-automation
-// @version      7.2
+// @version      7.3
 // @description  Auto-answers PointSolutions / TurningPoint (ttpoll.com / echo360) browser polls: random MCQ and short answer (submitted via the pink arrow), with a small random delay so it isn't instant. Short answers come from topic grab-bag pools keyed by a lecture topic you type in the pill. Ignores chat/support and the results/chart screen. Ctrl+Shift+D toggles an on-screen debug readout.
 // @license      MIT
 // @homepageURL  https://github.com/rsharma929/pointsolutions-poll-automation
@@ -314,6 +314,33 @@
     }
     updateStatus("🤖 Poll Automation: Active", "#00bcd4");
 
+    // Restore a saved pill position, and make the pill draggable by its status line
+    // (dragging the status text won't interfere with typing in the topic box).
+    try {
+        const pl = localStorage.getItem(NS + "posL"), pt = localStorage.getItem(NS + "posT");
+        if (pl !== null && pt !== null) { bar.style.bottom = 'auto'; bar.style.right = 'auto'; bar.style.left = pl + 'px'; bar.style.top = pt + 'px'; }
+    } catch (e) {}
+    (function () {
+        let drag = false, sx, sy, ox, oy;
+        statusSpan.style.cursor = 'grab'; statusSpan.style.touchAction = 'none';
+        statusSpan.addEventListener('pointerdown', e => {
+            drag = true; const r = bar.getBoundingClientRect(); ox = r.left; oy = r.top; sx = e.clientX; sy = e.clientY;
+            bar.style.bottom = 'auto'; bar.style.right = 'auto'; bar.style.left = ox + 'px'; bar.style.top = oy + 'px';
+            statusSpan.style.cursor = 'grabbing';
+            try { statusSpan.setPointerCapture(e.pointerId); } catch (_) {}
+        });
+        statusSpan.addEventListener('pointermove', e => {
+            if (!drag) return;
+            bar.style.left = Math.max(4, Math.min(window.innerWidth - 60, ox + e.clientX - sx)) + 'px';
+            bar.style.top = Math.max(4, Math.min(window.innerHeight - 30, oy + e.clientY - sy)) + 'px';
+        });
+        statusSpan.addEventListener('pointerup', e => {
+            drag = false; statusSpan.style.cursor = 'grab';
+            try { statusSpan.releasePointerCapture(e.pointerId); } catch (_) {}
+            try { localStorage.setItem(NS + "posL", parseInt(bar.style.left, 10)); localStorage.setItem(NS + "posT", parseInt(bar.style.top, 10)); } catch (_) {}
+        });
+    })();
+
     // Debug readout — created lazily, toggled with Ctrl+Shift+D.
     let debugDiv = null;
     function ensureDebug() {
@@ -476,10 +503,22 @@
         return !!chart;
     }
 
+    // True if the element is a genuine answer choice (a radio/checkbox, or a button/element whose
+    // class marks it choice/answer/option/response) — as opposed to slide / nav / toolbar chrome.
+    function isRealChoiceEl(el) {
+        const cls = classStr(el);
+        return el.getAttribute('role') === 'radio' || el.getAttribute('role') === 'checkbox' ||
+               cls.includes('choice') || cls.includes('answer') || cls.includes('option') || cls.includes('response');
+    }
     function isChoiceSelected(el) {
+        // Real form state first.
         if (el.tagName === 'INPUT' && (el.type === 'radio' || el.type === 'checkbox')) return el.checked;
-        return el.getAttribute('aria-checked') === 'true' || el.getAttribute('aria-selected') === 'true' ||
-               el.classList.contains('selected') || el.classList.contains('checked') || el.classList.contains('active');
+        if (el.getAttribute('aria-checked') === 'true' || el.getAttribute('aria-selected') === 'true' ||
+            el.getAttribute('aria-pressed') === 'true') return true;
+        // Class-based "selected" ONLY on a genuine answer choice — NOT on generic slide/nav/toolbar
+        // chrome, whose stray "active"/"selected" classes were falsely locking every question as
+        // "already answered" so the script never clicked.
+        return isRealChoiceEl(el) && (el.classList.contains('selected') || el.classList.contains('checked') || el.classList.contains('active'));
     }
 
     function dumpDebug(label, el) {
@@ -570,9 +609,14 @@
         //      during the delay, click another still-valid choice from the same question
         //      instead of skipping — you'd rather it answer than miss.
         if (currentChoices.length > 0) {
-            let idx = Math.floor(Math.random() * currentChoices.length);
-            let target = currentChoices[idx];
-            let snapshot = currentChoices;
+            // Prefer genuine answer choices; ignore lone slide/nav chrome. A real MCQ always has
+            // >=2 options, so a single detected button is a slide, not a question — don't click it.
+            let pool = currentChoices.filter(isRealChoiceEl);
+            if (!pool.length) pool = currentChoices;
+            if (pool.length < 2) { updateStatus("👁️ Watching slides…", "#9e9e9e"); return; }
+            let idx = Math.floor(Math.random() * pool.length);
+            let target = pool[idx];
+            let snapshot = pool;
             answeredCurrentBatch = true;                 // lock now so we act exactly once
             updateStatus("🤔 Thinking…", "#ff9800");
             setTimeout(() => {
