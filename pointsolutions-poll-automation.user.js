@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         PointSolutions Browser Poll Automation
 // @namespace    https://github.com/rsharma929/pointsolutions-poll-automation
-// @version      7.7
-// @description  Auto-answers PointSolutions / TurningPoint (ttpoll.com / echo360) browser polls: random MCQ and short answer (submitted via the pink arrow), with a small random delay so it isn't instant. Short answers come from topic grab-bag pools keyed by a lecture topic you type in the pill. Ignores chat/support and the results/chart screen. Ctrl+Shift+D toggles an on-screen debug readout.
+// @version      8.0
+// @description  Auto-answers PointSolutions / TurningPoint (ttpoll.com / echo360) browser polls: picks a multiple-choice option or types a short answer (submitted via the pink arrow) after a short random delay shown as a live countdown. Short answers come from 20 topic pools keyed by a lecture topic you type in the draggable pill (with a Clear button). Skips the results/chart screen and ignores chat/nav chrome. Ctrl+Shift+D toggles an on-screen debug readout.
 // @license      MIT
 // @homepageURL  https://github.com/rsharma929/pointsolutions-poll-automation
 // @supportURL   https://github.com/rsharma929/pointsolutions-poll-automation/issues

@@ -1,290 +1,150 @@
-# PointSolutions Browser Poll Automation
+# PointSolutions Browser Poll Assistant
 
-A [userscript](https://en.wikipedia.org/wiki/Userscript) that automatically responds to
-**PointSolutions / TurningPoint** audience-participation polls (the ones at **ttpoll.com**)
-when you answer them **in a web browser** instead of the mobile app.
+A userscript that automatically responds to **PointSolutions / TurningPoint** browser polls
+(ttpoll.com / turningtechnologies.com / echo360.com). When a question appears, it picks a
+multiple-choice option or types a short answer and submits it for you after a short, random
+delay — so your responses aren't suspiciously instant.
 
-- **Multiple choice** — picks a random option and lets the page auto-submit it.
-- **Short answer / open-ended** — types one of your configured answers, then clicks the
-  little **pink arrow** submit button (retrying until it goes through).
-- **Hotspot (click-on-image)** — best-effort click inside the image. These are rare and
-  the script is deliberately cautious here (see [Limitations](#limitations)).
+It runs entirely in your browser. There's no account, no server, and no API key.
 
-It shows a small status pill in the bottom-left corner so you always know what it's doing,
-and it only responds **once per question**.
-
-> ⚠️ **Use responsibly.** This automates graded/attendance participation. Understand your
-> institution's academic-integrity policy before using it. You are responsible for how you
-> use this.
+> **Use responsibly.** This automates graded/attendance participation in a live class. Make sure you
+> understand your school's academic-integrity policy before using it. You are responsible for how you
+> use it. Answers are picked for *plausibility and participation* — they are **not** meant to be correct.
 
 ---
 
-## Table of contents
+## What it does
 
-- [How it works](#how-it-works)
-- [Which app do I need?](#which-app-do-i-need) (quick picker)
-- [Install on Windows](#install-on-windows-chrome--edge--brave--firefox)
-- [Install on macOS](#install-on-macos)
-  - [Safari (recommended on Mac)](#macos--safari-recommended)
-  - [Chrome / Brave / Edge / Firefox](#macos--chrome--brave--edge--firefox)
-- [Install on iPad / iPhone](#install-on-ipad--iphone)
-- [Confirming it works](#confirming-it-works)
-- [Configuration](#configuration)
-- [Troubleshooting](#troubleshooting)
-- [DEBUG mode](#debug-mode)
-- [Limitations](#limitations)
+- **Multiple choice:** picks one of the on-screen options at random and clicks it (works for any
+  number of options — 2, 4, 5, 12, …).
+- **Short answer:** types a topical word/phrase into the answer box and submits it with the poll's
+  pink arrow. The answer is drawn from **20 built-in topic pools** (endocrine, cardio, renal, pulm,
+  heme, neuro, micro, immuno, biochem, pharm, repro, MSK, embryology, histology, biostats, oncology,
+  psych, nutrition, genetics, GI). You steer which pool is used by typing a **lecture topic** into
+  the on-screen pill — e.g. `thyroid disorders`, `renal physiology`.
+- **Random delay:** every answer waits a random **1.5–8 seconds** before submitting, shown as a live
+  countdown with a progress bar on the pill.
+- **Stays out of the way:** it skips the results/chart screen between questions, ignores the site's
+  chat/navigation chrome, and answers each question only once.
 
----
+### The on-screen pill
 
-## How it works
+A small pill appears in the bottom-left of the poll page:
 
-The script runs on any page under `ttpoll.com`, `turningtechnologies.com`, or `echo360.com`.
-Once per second it scans the page and decides what kind of question is showing, based on
-what interactive elements are present. It acts on the **first** match in this priority order:
-
-1. **Multiple choice** → clicks a random choice (the page submits it automatically).
-2. **Short answer** → types an answer and presses the pink arrow.
-3. **Hotspot image** → clicks a point inside the image.
-
-If none of those are present, it assumes you're just looking at a slide and does nothing.
-A per-question lock means it will never answer the same question twice; the lock releases
-automatically when a new question appears.
-
-The site is a single-page app, so the script keeps watching in the background the whole
-time you're in a session — you don't reload anything between questions.
+- **Status line** — shows what it's doing ("Watching slides", the delay countdown, "MCQ answered",
+  etc.). **Drag the pill by this line** to move it anywhere; it remembers where you put it.
+- **📚 Topic box** — type the lecture/workshop topic here so short answers are on-topic. It's saved
+  automatically between sessions.
+- **✕ Clear button** — wipes the topic and resets the tool for a fresh session.
+- **Ctrl+Shift+D** — toggles a small debug readout (what it's detecting), if you ever need it.
 
 ---
 
-## Which app do I need?
+## Install
 
-You need a **userscript manager** — a browser extension/app that runs scripts like this one.
-Which one depends on your device and browser:
+### 1. Install a userscript manager
 
-| Device | Browser | Use this |
+| Your browser | Install this | Cost |
 |---|---|---|
-| **Windows** | Chrome, Edge, Brave, Firefox | **Tampermonkey** |
-| **macOS** | Safari | **Userscripts** (recommended) or Tampermonkey |
-| **macOS** | Chrome, Brave, Edge, Firefox | **Tampermonkey** |
-| **iPad / iPhone** | Safari | **Userscripts** or **Stay** |
-| **iPad / iPhone** | Chrome, Firefox, Brave, etc. | ❌ **Not possible** — see [note](#a-note-about-chromefirefox-on-ipadiphone) |
+| **Chrome / Edge / Brave** (Windows, Mac) | **[Tampermonkey](https://www.tampermonkey.net/)** | Free |
+| **Safari** (Mac, iPad, iPhone) | **[Userscripts](https://apps.apple.com/app/userscripts/id1463298887)** | Free |
 
-The script file to install is **`pointsolutions-poll-automation.user.js`**.
+> On Safari, use **Userscripts** — it's free. (Tampermonkey on Safari is a paid app.) After
+> installing Userscripts, open **Safari → Settings → Extensions** and enable it, and allow it to run
+> on the poll sites when prompted.
 
----
+### 2. Chrome only: turn on "Allow user scripts"
 
-## Install on Windows (Chrome / Edge / Brave / Firefox)
+Recent versions of Chrome require you to flip one switch before Tampermonkey is allowed to run
+scripts. You only do this once:
 
-**1. Install Tampermonkey**
+1. Open **`chrome://extensions`** (or **⋮ menu → Extensions → Manage Extensions**).
+2. Find **Tampermonkey** and click **Details**.
+3. Scroll down and turn **Allow User Scripts** **ON**.
 
-- Chrome / Brave: [Chrome Web Store → Tampermonkey](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
-- Edge: [Edge Add-ons → Tampermonkey](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd)
-- Firefox: [Firefox Add-ons → Tampermonkey](https://addons.mozilla.org/firefox/addon/tampermonkey/)
+> If you don't see an "Allow User Scripts" toggle, instead turn on **Developer mode** (switch in the
+> top-right of the `chrome://extensions` page). One of the two will be there depending on your Chrome
+> version.
 
-**2. Enable the userscript permission (Chrome / Edge / Brave only)**
+### 3. Add the script
 
-Recent versions of Chrome/Edge/Brave require an extra toggle before Tampermonkey can run
-scripts. Do **whichever** of these your version shows:
+Click this link — your userscript manager will open an install page; confirm it:
 
-- Go to the extensions page (menu → **Extensions → Manage Extensions**, or type
-  `chrome://extensions` / `edge://extensions` / `brave://extensions` in the address bar).
-- **Newer versions:** click **Details** on Tampermonkey and turn on **“Allow user scripts.”**
-- **Older versions:** turn on **“Developer mode”** (toggle in the top-right of the extensions page).
+**→ [Install / update the script](https://raw.githubusercontent.com/rsharma929/pointsolutions-poll-automation/main/pointsolutions-poll-automation.user.js)**
 
-Firefox needs neither — it works out of the box.
+```
+https://raw.githubusercontent.com/rsharma929/pointsolutions-poll-automation/main/pointsolutions-poll-automation.user.js
+```
 
-**3. Add the script**
+- **Tampermonkey (Chrome):** the link opens a tab with an **Install** button — click it.
+- **Userscripts (Safari):** if the link just shows the raw text, copy all of it, open the Userscripts
+  extension, create a **new script**, paste it in, and save (see *Editing* below).
 
-1. Click the **Tampermonkey icon** in the toolbar (pin it first if hidden: click the puzzle-piece
-   icon → pin Tampermonkey).
-2. Choose **“Create a new script…”** — this opens an editor with a template.
-3. Select all the template text and delete it, then paste the **entire contents** of
-   `pointsolutions-poll-automation.user.js`.
-4. Save with **Ctrl + S** (or **File → Save**). The script now appears in your
-   Tampermonkey dashboard, enabled.
-
-   > 💡 *Alternative:* if you open the `.user.js` file's URL/path directly in the browser,
-   > Tampermonkey usually offers a one-click **Install** page. Either method works.
-
-**4. Confirm site access**
-
-In the Tampermonkey dashboard, the script should be **Enabled** (green). Tampermonkey
-automatically grants access to the sites listed in the script (`ttpoll.com`,
-`turningtechnologies.com`, `echo360.com`). No extra site setting is normally needed.
-
-Then jump to [Confirming it works](#confirming-it-works).
+That's it. Open a poll at `ttpoll.com` (or your class's PointSolutions link) and the pill appears.
 
 ---
 
-## Install on macOS
+## Using it
 
-On a Mac you can use **Safari with the Userscripts app (recommended)** or any Chromium/Firefox
-browser with **Tampermonkey**.
+1. Join the poll session as normal.
+2. In the pill's **📚 topic box**, type the lecture/workshop topic (e.g. `adrenal`, `cardio`,
+   `vitamin deficiencies`). This makes short answers match the subject.
+3. Leave the tab open. When a question appears, the pill shows a countdown and then answers:
+   - **MCQ** → clicks an option.
+   - **Short answer** → types an answer and submits with the pink arrow.
+4. Press **✕** on the pill to clear the topic and reset between unrelated sessions.
 
-### macOS — Safari (recommended)
-
-**1. Install the Userscripts app**
-
-Install **[Userscripts](https://apps.apple.com/us/app/userscripts/id1463298887)** (by Quoid)
-from the Mac App Store. It's free and open-source.
-
-**2. Enable it in Safari and grant website access**
-
-1. Open **Safari → Settings (⌘,) → Extensions**.
-2. Check the box next to **Userscripts** to turn it on.
-3. Still in that panel, set Userscripts' permission to **Allow** for the poll websites.
-   The simplest reliable setting is **“Allow on Every Website.”** (You can restrict it to
-   `ttpoll.com` etc. if you prefer, but allowing everywhere avoids missed-permission issues.)
-
-**3. Point Userscripts at a folder**
-
-1. Click the **Userscripts icon** in Safari's toolbar (or open the Userscripts app) and, when
-   prompted, **choose a folder** where your scripts live (e.g. `Documents/Userscripts`).
-
-**4. Add the script — IMPORTANT: import the file, don't paste**
-
-> ⚠️ **Pasting the code into the Userscripts editor often fails** — the editor can mangle the
-> formatting/character encoding and the script won't run. **Importing the actual `.user.js`
-> file works reliably.**
-
-- In **Finder**, copy **`pointsolutions-poll-automation.user.js`** into the folder you
-  chose in step 3.
-- Open the Userscripts popup in Safari — the script now appears in the list. Make sure its
-  toggle is **on**.
-
-Then jump to [Confirming it works](#confirming-it-works).
-
-### macOS — Chrome / Brave / Edge / Firefox
-
-Follow the exact same steps as **[Install on Windows](#install-on-windows-chrome--edge--brave--firefox)** —
-Tampermonkey works identically on macOS. (Remember the **“Allow user scripts” / Developer mode**
-step for Chrome/Brave/Edge.)
+If you answer a question yourself first, the tool detects it and won't touch it.
 
 ---
 
-## Install on iPad / iPhone
+## Editing the script
 
-On iPad and iPhone you **must use Safari.** Two apps work; pick one:
+You can open the script and change anything — most usefully the **topic answer pools** (near the top,
+`GENERAL_POOL` and `TOPIC_BANKS`) or the **delay range** (`MIN_DELAY_MS` / `MAX_DELAY_MS`).
 
-- **[Userscripts](https://apps.apple.com/us/app/userscripts/id1463298887)** (by Quoid) — same
-  app as on Mac. Requires **iOS/iPadOS 15.1 or newer**. No built-in editor on iOS, so you add
-  scripts as files.
-- **[Stay – Userscripts Extension](https://apps.apple.com/us/app/stay-userscripts-extension/id1591620171)**
-  (by shenruisi) — understands Tampermonkey-format scripts and has an in-app import/editor, which
-  some people find easier on a tablet.
+### Tampermonkey (Chrome)
 
-### Option A — Userscripts (files-based)
+1. Click the **Tampermonkey icon** in the toolbar → **Dashboard** (or go to `chrome://extensions`,
+   Tampermonkey → **Details** → **Extension options**).
+2. In the **Installed Userscripts** list, click **PointSolutions Browser Poll Automation**.
+3. Edit the code in the editor.
+4. Save with **File → Save** (or **Ctrl+S** / **Cmd+S**). The change takes effect on the next page
+   reload.
 
-1. Install **Userscripts** from the App Store.
-2. **Settings app → Apps → Safari → Extensions → Userscripts** (on older iOS:
-   **Settings → Safari → Extensions**). Turn it **on** and set its permission to **Allow** for
-   the poll sites — **“Allow on Every Website”** is the safest.
-3. Open the **Userscripts app** once and **choose a folder** for scripts (an iCloud Drive folder
-   works and can sync with your Mac; note iCloud can be slow/evict files occasionally).
-4. Using the **Files app**, copy **`pointsolutions-poll-automation.user.js`** into that
-   folder. The filename **must end in `.user.js`**.
-5. In Safari, tap the **puzzle-piece / “Aa” → Manage Extensions**, enable **Userscripts**, then
-   open its popup and make sure the script is toggled **on**.
+### Userscripts (Safari)
 
-### Option B — Stay
-
-1. Install **Stay** from the App Store and enable it in **Safari → Extensions** (same permission
-   step as above — **Allow on Every Website**).
-2. Open **Stay** and use its **import** feature to add the `.user.js` file (from Files, iCloud,
-   or a URL). Stay accepts Tampermonkey-style scripts directly.
-3. Make sure the script is enabled inside Stay.
-
-### A note about Chrome/Firefox on iPad/iPhone
-
-You **cannot** run this on Chrome, Firefox, Brave, or any other browser on iPad/iPhone. Apple
-requires every iOS browser to use WebKit and only lets **Safari** run these web extensions, so
-Tampermonkey/Userscripts/Stay simply aren't available in third-party iOS browsers. Use **Safari**.
+1. Open the **Userscripts** extension (its icon in the Safari toolbar, or **Safari → Settings →
+   Extensions → Userscripts**; on iPhone/iPad it's in the **aA / extensions** menu in the address bar).
+2. Select **PointSolutions Browser Poll Automation** from the list.
+3. Edit the code, then tap/click **Save**.
+4. Reload the poll tab for the change to take effect.
 
 ---
 
-## Confirming it works
+## Updating the script
 
-1. Open **[ttpoll.com](https://ttpoll.com)** (or your institution's PointSolutions link) and
-   **join your session**.
-2. Look at the **bottom-left corner**. You should see a small pill:
-   **“🤖 Poll Automation: Active & Scanning.”**
-   - If you see it, the script is running. ✅
-   - If you **don't** see it, the script isn't loading — see [Troubleshooting](#troubleshooting).
-3. When a question opens, the pill updates, e.g.:
-   - `✅ Answered: Multiple Choice (Option 2)`
-   - `⌛ Typed "Yes" — submitting…` → `✅ Answered: Typed "Yes" + submitted`
-   - `👁️ Watching lecture slides…` (no active question)
+**Automatic:** if your manager tracks an update URL for the script, it checks periodically on its own.
+To force a check in **Tampermonkey**: open the **Dashboard**, go to the **Utilities** tab (or the
+settings menu) and click **Check for userscript updates**.
 
-That's it — leave the tab open during the lecture.
+**Manual (always works):** if it doesn't update on its own, just install the latest over the top:
 
----
+- **Tampermonkey:** open the [install link](https://raw.githubusercontent.com/rsharma929/pointsolutions-poll-automation/main/pointsolutions-poll-automation.user.js)
+  again and click **Install/Reinstall** — it replaces the existing script and keeps your settings.
+- **Either manager:** open the script in the editor (see *Editing* above), select all, delete, paste
+  in the newest version from the link, and **Save**.
 
-## Configuration
-
-Open the script in your userscript manager's editor to change these (near the top of the file):
-
-- **Short-answer responses** — edit this list to control what gets typed:
-  ```js
-  const shortAnswerResponses = ["Yes", "Idk", "Not sure"];
-  ```
-  > If a professor actually reads open-ended answers, change these to something appropriate —
-  > the defaults are obviously placeholder.
-- **DEBUG mode** — see below:
-  ```js
-  const DEBUG = false;   // set to true to diagnose problems
-  ```
-- **Which sites it runs on** — the `@match` lines in the header. If your school uses a different
-  domain, add another `@match` line for it.
+After updating, check the version at the top of the file (`// @version`) to confirm you're on the
+latest. Reload the poll tab.
 
 ---
 
-## Troubleshooting
+## Privacy
 
-| Symptom | Likely cause & fix |
-|---|---|
-| **No status pill appears at all** | Script not running. Check the extension is **enabled**, the script is **toggled on**, and site permission is granted. On Chrome/Brave/Edge, confirm **“Allow user scripts” / Developer mode** is on. |
-| **Pill shows but nothing gets answered** | The page's question markup may differ. Turn on [DEBUG mode](#debug-mode) and check the on-screen readout / console. |
-| **Short answer types but doesn't submit** (`⚠️ couldn't find/press submit`) | The pink arrow button wasn't found. Enable DEBUG and capture the console dump of the submit button so the selector can be tightened. |
-| **Enter key just makes a new line** | Expected — the short-answer box is multi-line, so the script uses the pink arrow, not Enter. |
-| **Safari + Userscripts: script won't load after pasting** | Don't paste — **import the `.user.js` file** into the Userscripts folder instead (see the macOS Safari steps). |
-| **Works on Mac but not iPad** | Make sure you're in **Safari**, the extension permission is **Allow on Every Website**, and the file in your scripts folder ends in **`.user.js`**. |
-| **Chrome/Brave stopped running it after an update** | Chrome tightened userscript rules — re-enable **“Allow user scripts”** on Tampermonkey's Details page. |
-| **It clicked something weird / a chat bubble** | Should be filtered now. If it still happens, enable DEBUG and capture what it clicked. |
+Everything runs locally in your browser. The tool makes no network requests of its own and sends your
+data nowhere. Your topic text and pill position are stored only on your device (`localStorage`).
 
----
+## License
 
-## DEBUG mode
-
-Set `const DEBUG = false;` to `const DEBUG = true;` near the top of the script and save.
-
-Then, during a session:
-
-- A second panel appears above the status pill showing a live readout:
-  ```
-  🔎 DEBUG readout
-  mode:     SHORT ANSWER
-  choices:  0
-  textbox:  1
-  hotspots: 0
-  ```
-  `mode` is how the script is classifying the current screen.
-- Open the browser **console** (Windows/Linux: **F12** → Console tab; Mac Safari: enable
-  **Develop menu** in Safari settings, then **Develop → Show JavaScript Console**) to see
-  detailed `[PollAutomation]` dumps whenever it acts — the exact element, its classes, and a
-  snippet of its HTML.
-
-This is what to capture and share if a specific question type isn't working, so the detection
-can be made exact. **Set `DEBUG` back to `false` when you're done** so the panels disappear.
-
----
-
-## Limitations
-
-- **Hotspot questions are best-effort.** The script only clicks a real image (or an element
-  explicitly marked as a hotspot); it deliberately will **not** click a blank canvas, so it
-  won't accidentally "answer" a plain lecture slide. If your class uses a hotspot layout the
-  script doesn't recognize, use DEBUG to capture it. These questions are rare.
-- **It can't read the question.** It answers **randomly** (MCQ) or with a **canned response**
-  (short answer). It does not attempt to answer correctly.
-- **Layouts vary by professor.** Some mirror slides into the poll, some embed the question text,
-  some show only the answer choices. The script infers from the answer controls, so it copes
-  with all three — but an unusual custom layout may need a DEBUG capture to support.
+MIT — see [LICENSE](LICENSE).
