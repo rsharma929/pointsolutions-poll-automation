@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PointSolutions Browser Poll Automation
 // @namespace    https://github.com/rsharma929/pointsolutions-poll-automation
-// @version      8.1
+// @version      8.2
 // @description  Auto-answers PointSolutions / TurningPoint (ttpoll.com / echo360) browser polls: picks a multiple-choice option or types a short answer (submitted via the pink arrow) after a short random delay shown as a live countdown. Short answers come from 20 topic pools keyed by a lecture topic you type in the draggable pill (with Pause/Resume and Clear buttons). Skips the results/chart screen and ignores chat/nav chrome. Ctrl+Shift+D toggles an on-screen debug readout.
 // @license      MIT
 // @homepageURL  https://github.com/rsharma929/pointsolutions-poll-automation
@@ -369,12 +369,30 @@
         }, 100);
     }
 
-    // Restore a saved pill position, and make the pill draggable by its status line
-    // (dragging the status text won't interfere with typing in the topic box).
+    // Keep the pill fully inside the viewport. Guards against a saved position from a bigger
+    // window / another monitor / a zoom change hiding the whole pill off-screen (the debug box,
+    // which has no saved position, would still show — exactly that "pill vanished" symptom).
+    function clampPillToViewport() {
+        if (!bar.style.left || bar.style.left === 'auto') return;   // still at the default corner
+        const w = bar.offsetWidth || 200, h = bar.offsetHeight || 60;
+        const maxL = Math.max(4, window.innerWidth - w - 4);
+        const maxT = Math.max(4, window.innerHeight - h - 4);
+        let l = parseInt(bar.style.left, 10); if (isNaN(l)) l = 4;
+        let t = parseInt(bar.style.top, 10); if (isNaN(t)) t = 4;
+        bar.style.left = Math.max(4, Math.min(maxL, l)) + 'px';
+        bar.style.top = Math.max(4, Math.min(maxT, t)) + 'px';
+    }
+    // Restore a saved pill position (clamped on-screen), and make the pill draggable by its status
+    // line (dragging the status text won't interfere with typing in the topic box).
     try {
         const pl = localStorage.getItem(NS + "posL"), pt = localStorage.getItem(NS + "posT");
-        if (pl !== null && pt !== null) { bar.style.bottom = 'auto'; bar.style.right = 'auto'; bar.style.left = pl + 'px'; bar.style.top = pt + 'px'; }
+        if (pl !== null && pt !== null) {
+            bar.style.bottom = 'auto'; bar.style.right = 'auto'; bar.style.left = pl + 'px'; bar.style.top = pt + 'px';
+            clampPillToViewport();
+            try { localStorage.setItem(NS + "posL", parseInt(bar.style.left, 10)); localStorage.setItem(NS + "posT", parseInt(bar.style.top, 10)); } catch (_) {}
+        }
     } catch (e) {}
+    window.addEventListener('resize', clampPillToViewport);
     (function () {
         let drag = false, sx, sy, ox, oy;
         statusSpan.style.cursor = 'grab'; statusSpan.style.touchAction = 'none';
@@ -386,8 +404,10 @@
         });
         statusSpan.addEventListener('pointermove', e => {
             if (!drag) return;
-            bar.style.left = Math.max(4, Math.min(window.innerWidth - 60, ox + e.clientX - sx)) + 'px';
-            bar.style.top = Math.max(4, Math.min(window.innerHeight - 30, oy + e.clientY - sy)) + 'px';
+            const maxL = Math.max(4, window.innerWidth - bar.offsetWidth - 4);   // keep the WHOLE pill on-screen
+            const maxT = Math.max(4, window.innerHeight - bar.offsetHeight - 4);
+            bar.style.left = Math.max(4, Math.min(maxL, ox + e.clientX - sx)) + 'px';
+            bar.style.top = Math.max(4, Math.min(maxT, oy + e.clientY - sy)) + 'px';
         });
         statusSpan.addEventListener('pointerup', e => {
             drag = false; statusSpan.style.cursor = 'grab';
